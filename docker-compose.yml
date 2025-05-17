@@ -1,0 +1,53 @@
+version: "3.8"
+
+services:
+  web:
+    build: .
+    container_name: web_app
+    volumes:
+      - ./www:/var/www/html
+    ports:
+      - "8080:80"
+    depends_on:
+      - mysql
+      - mongodb
+    networks:
+      - webnet
+
+  mysql:
+    image: mysql:latest
+    container_name: mysql_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: app_db
+      MYSQL_USER: user
+      MYSQL_PASSWORD: userpass
+    volumes:
+      - /mnt/lvm/mysql:/var/lib/mysql
+    networks:
+      - webnet
+
+  mongodb:
+    image: mongo:latest
+    container_name: mongo_db
+    volumes:
+      - /mnt/lvm/mongodb:/data/db
+    networks:
+      - webnet
+
+  ctop:
+    image: quay.io/vektorlab/ctop:latest
+    container_name: ctop
+    restart: unless-stopped
+    tty: true
+    stdin_open: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /mnt/lvm/ctop:/root/.ctop
+    networks:
+      - webnet
+
+networks:
+  webnet:
+    driver: bridge

@@ -12,13 +12,10 @@ if ($conn->connect_error) {
 
 $mensaje = "";
 
-// ---------- CONEXIÓN MONGODB ----------
-require 'vendor/autoload.php'; // Asegúrate de tener MongoDB PHP library
+// ---------- CONEXIÓN MONGODB sin vendor/autoload.php ----------
 try {
-    $mongoClient = new MongoDB\Client("mongodb://mongo_db:27017");
-    $mongoDB = $mongoClient->selectDatabase("respaldo");
-    $mongoCollection = $mongoDB->clientes;
-} catch (Exception $e) {
+    $manager = new MongoDB\Driver\Manager("mongodb://mongo_db:27017");
+} catch (MongoDB\Driver\Exception\Exception $e) {
     die("❌ Error de conexión MongoDB: " . $e->getMessage());
 }
 
@@ -33,14 +30,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $mysql_result = $stmt->execute();
 
     // Insertar en MongoDB
-    $mongo_result = $mongoCollection->insertOne([
+    $bulk = new MongoDB\Driver\BulkWrite;
+    $document = [
         'nombre' => $nombre,
         'email' => $email,
         'fecha' => new MongoDB\BSON\UTCDateTime()
-    ]);
+    ];
+    $bulk->insert($document);
 
-    if ($mysql_result && $mongo_result->getInsertedCount() === 1) {
-    //if ($mysql_result) {
+    try {
+        $mongo_result = $manager->executeBulkWrite('respaldo.clientes', $bulk);
+        $mongo_success = $mongo_result->getInsertedCount() === 1;
+    } catch (MongoDB\Driver\Exception\Exception $e) {
+        $mongo_success = false;
+    }
+
+    if ($mysql_result && $mongo_success) {
         $mensaje = "✅ Datos insertados correctamente.";
     } else {
         $mensaje = "❌ Error al insertar los datos.";
@@ -49,6 +54,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $stmt->close();
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
